@@ -5,8 +5,9 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+import json
 
-app = FastAPI(title="AslanYatırım Yapay Zeka Portalı", version="0.6.0")
+app = FastAPI(title="AslanYatırım Yapay Zeka Portalı", version="0.7.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +35,7 @@ def web_arayuzu(hisse_kodu: str = None):
             </div>
             """
         else:
+            # İndikatör Hesaplamaları
             df['SMA_14'] = df['Close'].rolling(window=14).mean()
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
@@ -42,6 +44,7 @@ def web_arayuzu(hisse_kodu: str = None):
             df['RSI_14'] = 100 - (100 / (1 + rs))
             df['Fiyat_Degisim'] = df['Close'].pct_change()
             
+            # Yapay Zeka Hazırlığı
             df['Hedef'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
             df_model = df.dropna().copy()
             
@@ -65,6 +68,11 @@ def web_arayuzu(hisse_kodu: str = None):
                 
                 bg_renk = "status-yukari" if tahmin == 1 else "status-asagi"
                 rsi_renk = "text-danger" if rsi_anlik > 70 else ("text-success" if rsi_anlik < 30 else "text-warning")
+                
+                # Grafik için Son 30 Günün Verilerini Hazırlama
+                son_30_gun = df.tail(30)
+                tarihler = [str(date.date()) for date in son_30_gun.index]
+                fiyatlar = [round(float(val), 2) for val in son_30_gun['Close'].values]
                 
                 sonuc_alani = f"""
                 <div class="card p-4 mb-4 animate-fade w-100">
@@ -90,19 +98,40 @@ def web_arayuzu(hisse_kodu: str = None):
                 </div>
 
                 <div class="card p-4 animate-fade w-100">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-gold m-0 fw-bold uppercase tracking">📈 Teknik Grafik & Trend Analizi</h6>
-                        <span class="badge bg-warning text-dark px-2 py-1 small fw-bold">YAKINDA</span>
-                    </div>
-                    <div class="placeholder-container text-start">
-                        <div class="placeholder-bar mb-2" style="width: 85%;"></div>
-                        <div class="placeholder-bar mb-2" style="width: 60%;"></div>
-                        <div class="placeholder-bar" style="width: 40%;"></div>
-                    </div>
-                    <div class="text-center text-muted small mt-3 italic">
-                        Detaylı indikatör veri tabloları ve yapay zeka grafik modülü çok yakında buraya entegre edilecektir.
+                    <h6 class="text-gold mb-3 fw-bold uppercase tracking text-start">📈 Son 30 Günlük Fiyat Trendi</h6>
+                    <div style="position: relative; height:220px; width:100%;">
+                        <canvas id="fiyatGrafik"></canvas>
                     </div>
                 </div>
+
+                <script>
+                    const ctx = document.getElementById('fiyatGrafik').getContext('2d');
+                    new Chart(ctx, {{
+                        type: 'line',
+                        data: {{
+                            labels: {json.dumps(tarihler)},
+                            datasets: [{{
+                                label: 'Kapanış Fiyatı (TL)',
+                                data: {json.dumps(fiyatlar)},
+                                borderColor: '#FFD700',
+                                backgroundColor: 'rgba(255, 215, 0, 0.05)',
+                                borderWidth: 2,
+                                pointRadius: 2,
+                                pointHoverRadius: 5,
+                                tension: 0.2
+                            }}]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {{ legend: {{ display: false }} }},
+                            scales: {{
+                                x: {{ grid: {{ display: false }}, ticks: {{ color: '#888', font: {{ size: 10 }} }} }},
+                                y: {{ grid: {{ color: '#242b37' }}, ticks: {{ color: '#888', font: {{ size: 10 }} }} }}
+                            }}
+                        }}
+                    }});
+                </script>
                 """
 
     return f"""
@@ -113,6 +142,7 @@ def web_arayuzu(hisse_kodu: str = None):
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>AslanYatırım - Premium Yapay Zeka Analiz Paneli</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/bootstrap.min.css" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
             body {{ 
                 background-color: #0d0f12; 
@@ -125,7 +155,6 @@ def web_arayuzu(hisse_kodu: str = None):
                 margin: 0;
             }}
             .text-gold {{ color: #FFD700 !important; }}
-            .bg-gold {{ background-color: #FFD700 !important; color: #0d0f12 !important; }}
             
             .card {{ 
                 background-color: #161a22 !important; 
@@ -153,7 +182,6 @@ def web_arayuzu(hisse_kodu: str = None):
                 font-weight: bold;
                 border-radius: 0 10px 10px 0;
                 padding: 12px 24px;
-                transition: all 0.2s ease;
             }}
             
             .status-yukari {{ background: linear-gradient(135deg, #198754 0%, #0f5132 100%); }}
@@ -161,7 +189,6 @@ def web_arayuzu(hisse_kodu: str = None):
             
             .uppercase {{ text-transform: uppercase; }}
             .tracking {{ letter-spacing: 1px; }}
-            .italic {{ font-style: italic; }}
             
             .main-content {{
                 flex: 1;
@@ -176,25 +203,6 @@ def web_arayuzu(hisse_kodu: str = None):
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-            }}
-            
-            .placeholder-container {{
-                background: #1f242e;
-                padding: 20px;
-                border-radius: 10px;
-                border: 1px dashed #323b4c;
-            }}
-            .placeholder-bar {{
-                height: 12px;
-                background: linear-gradient(90deg, #242b37 25%, #323b4c 50%, #242b37 75%);
-                background-size: 200% 100%;
-                animation: loading 1.5s infinite;
-                border-radius: 6px;
-            }}
-            
-            @keyframes loading {{
-                0% {{ background-position: 200% 0; }}
-                100% {{ background-position: -200% 0; }}
             }}
             
             .animate-fade {{
