@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
-app = FastAPI(title="BorsaAI Yapay Zeka Portalı", version="0.4.5")
+app = FastAPI(title="AslanYatırım Yapay Zeka Portalı", version="0.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,7 +17,6 @@ app.add_middleware(
 
 @app.get("/", response_class=HTMLResponse)
 def web_arayuzu(hisse_kodu: str = None):
-    # Eğer kullanıcı henüz arama yapmadıysa boş sonuç alanı gönder
     sonuc_alani = ""
     sembol_degeri = ""
     
@@ -29,8 +28,9 @@ def web_arayuzu(hisse_kodu: str = None):
         
         if df.empty or len(df) < 20:
             sonuc_alani = f'''
-            <div class="card p-4">
-                <div class="alert alert-danger m-0">Hata: {sembol_degeri} için veri alınamadı. Kodun doğruluğunu kontrol edin.</div>
+            <div class="card p-4 text-center border-danger animate-fade">
+                <div class="text-danger fw-bold fs-5">⚠️ Hata: {sembol_degeri}</div>
+                <div class="text-muted small mt-1">Borsa İstanbul verisi alınamadı. Sembolü doğru girdiğinizden emin olun (Örn: THYAO).</div>
             </div>
             '''
         else:
@@ -48,7 +48,7 @@ def web_arayuzu(hisse_kodu: str = None):
             df_model = df.dropna().copy()
             
             if df_model.empty:
-                sonuc_alani = '<div class="card p-4"><div class="alert alert-danger m-0">Hata: Veri seti model için yetersiz.</div></div>'
+                sonuc_alani = '<div class="card p-4 text-center border-danger"><div class="text-danger">Hata: Model için yetersiz veri.</div></div>'
             else:
                 oznitelikler = ['SMA_14', 'RSI_14', 'Fiyat_Degisim']
                 X = df_model[oznitelikler]
@@ -67,72 +67,166 @@ def web_arayuzu(hisse_kodu: str = None):
                 guven_skoru = tahmin_olasiligi[1] if tahmin == 1 else tahmin_olasiligi[0]
                 rsi_anlik = df['RSI_14'].iloc[-1]
                 
-                bg_renk = "bg-yukari" if tahmin == 1 else "bg-asagi"
+                bg_renk = "status-yukari" if tahmin == 1 else "status-asagi"
                 rsi_renk = "text-danger" if rsi_anlik > 70 else ("text-success" if rsi_anlik < 30 else "text-warning")
                 
                 sonuc_alani = f'''
-                <div class="card p-4">
+                <div class="card p-4 mb-4 animate-fade">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3 class="fw-bold m-0">{sembol_degeri}</h3>
-                        <span class="text-muted small">Tarih: {str(df.index[-1].date())}</span>
+                        <h2 class="fw-bold text-gold m-0">{sembol_degeri}</h2>
+                        <span class="text-muted small">Son Veri: {str(df.index[-1].date())}</span>
                     </div>
-                    <hr>
-                    <div class="row text-center my-3">
+                    <div class="row text-center my-4">
                         <div class="col">
-                            <div class="text-muted small">Son Kapanış</div>
-                            <div class="fs-4 fw-bold text-dark">{round(df['Close'].iloc[-1], 2)} TL</div>
+                            <div class="text-muted small uppercase fw-bold tracking">Kapanış Fiyatı</div>
+                            <div class="fs-3 fw-bold text-white mt-1">{round(df['Close'].iloc[-1], 2)} TL</div>
                         </div>
                         <div class="col">
-                            <div class="text-muted small">RSI (14)</div>
-                            <div class="fs-4 fw-bold {rsi_renk}">{round(rsi_anlik, 2)}</div>
+                            <div class="text-muted small uppercase fw-bold tracking">RSI (14)</div>
+                            <div class="fs-3 fw-bold {rsi_renk} mt-1">{round(rsi_anlik, 2)}</div>
                         </div>
                     </div>
-                    <div class="card p-3 text-center {bg_renk}">
-                        <div class="small fw-bold text-uppercase">Yapay Zeka Öngörüsü</div>
-                        <div class="fs-5 fw-bold my-1">{ai_sinyali}</div>
-                        <div class="small">Model Güven Oranı: <strong>%{round(guven_skoru * 100, 2)}</strong></div>
+                    <div class="card p-3 text-center {bg_renk} border-0">
+                        <div class="small fw-bold text-uppercase tracking" style="opacity: 0.8;">Yapay Zeka Sinyali</div>
+                        <div class="fs-4 fw-bold my-1 text-white">{ai_sinyali}</div>
+                        <div class="small text-white-50">Model Güven Oranı: <strong class="text-white">%{round(guven_skoru * 100, 2)}</strong></div>
+                    </div>
+                </div>
+
+                <div class="card p-4 animate-fade">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h6 class="text-gold m-0 fw-bold uppercase tracking">📈 Teknik İndikatör Grafikleri & Trend Analizi</h6>
+                        <span class="badge bg-warning text-dark px-2 py-1 small fw-bold">YAKINDA</span>
+                    </div>
+                    <div class="placeholder-container">
+                        <div class="placeholder-bar mb-2" style="width: 85%;"></div>
+                        <div class="placeholder-bar mb-2" style="width: 60%;"></div>
+                        <div class="placeholder-bar" style="width: 40%;"></div>
+                    </div>
+                    <div class="text-center text-muted small mt-3 italic">
+                        Detaylı indikatör veri tabloları ve yapay zeka grafik modülü çok yakında buraya entegre edilecektir.
                     </div>
                 </div>
                 '''
 
-    # HTML çıktısını temiz bir f-string ile birleştirip fırlatıyoruz
     return f'''
     <!DOCTYPE html>
     <html lang="tr">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>BorsaAI - Yapay Zeka Analiz Paneli</title>
+        <title>AslanYatırım - Premium Yapay Zeka Analiz Paneli</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/bootstrap.min.css" rel="stylesheet">
         <style>
-            body {{ background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }}
-            .card {{ border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
-            .bg-yukari {{ background-color: #d1e7dd !important; color: #0f5132 !important; }}
-            .bg-asagi {{ background-color: #f8d7da !important; color: #842029 !important; }}
+            body {{ 
+                background-color: #0d0f12; 
+                color: #f8f9fa;
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }}
+            .text-gold {{ color: #FFD700 !important; }}
+            .bg-gold {{ background-color: #FFD700 !important; color: #0d0f12 !important; }}
+            
+            .card {{ 
+                background-color: #161a22 !important; 
+                border: 1px solid #242b37 !important; 
+                border-radius: 16px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            }}
+            
+            .form-control {{
+                background-color: #1f242e !important;
+                border: 1px solid #323b4c !important;
+                color: #ffffff !important;
+                border-radius: 10px 0 0 10px;
+                padding: 12px 16px;
+            }}
+            .form-control:focus {{
+                border-color: #FFD700 !important;
+                box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.15) !important;
+            }}
+            
+            .btn-gold {{
+                background-color: #FFD700 !important;
+                color: #0d0f12 !important;
+                font-weight: bold;
+                border-radius: 0 10px 10px 0;
+                padding: 12px 24px;
+                transition: all 0.2s ease;
+            }}
+            .btn-gold:hover {{
+                background-color: #e6c200 !important;
+                transform: translateY(-1px);
+            }}
+            
+            .status-yukari {{ background: linear-gradient(135deg, #198754 0%, #0f5132 100%); }}
+            .status-asagi {{ background: linear-gradient(135deg, #dc3545 0%, #842029 100%); }}
+            
+            .uppercase {{ text-transform: uppercase; }}
+            .tracking {{ letter-spacing: 1px; }}
+            .italic {{ font-style: italic; }}
+            
+            /* Placeholder Efekti */
+            .placeholder-container {{
+                background: #1f242e;
+                padding: 20px;
+                border-radius: 10px;
+                border: 1px dashed #323b4c;
+            }}
+            .placeholder-bar {{
+                height: 12px;
+                background: linear-gradient(90deg, #242b37 25%, #323b4c 50%, #242b37 75%);
+                background-size: 200% 100%;
+                animation: loading 1.5s infinite;
+                border-radius: 6px;
+            }}
+            
+            @keyframes loading {{
+                0% {{ background-position: 200% 0; }}
+                100% {{ background-position: -200% 0; }}
+            }}
+            
+            .animate-fade {{
+                animation: fadeIn 0.4s ease-out forwards;
+            }}
+            @keyframes fadeIn {{
+                from {{ opacity: 0; transform: translateY(10px); }}
+                to {{ opacity: 1; transform: translateY(0); }}
+            }}
         </style>
     </head>
     <body>
-        <nav class="navbar navbar-dark bg-dark mb-4">
-            <div class="container">
-                <a class="navbar-brand fw-bold" href="#">📊 BorsaAI Yapay Zeka Portalı</a>
+        <nav class="navbar navbar-dark py-3" style="background-color: #0a0c0e; border-bottom: 1px solid #1a1f29;">
+            <div class="container justify-content-center">
+                <span class="navbar-brand fw-bold text-gold fs-4 tracking">🦁 ASLAN YATIRIM PORTALI</span>
             </div>
         </nav>
-        <div class="container">
+        
+        <div class="container my-auto py-5">
             <div class="row justify-content-center">
-                <div class="col-md-6">
+                <div class="col-md-7 col-lg-6">
+                    
                     <div class="card p-4 mb-4">
-                        <h5 class="card-title fw-bold mb-3">Hisse Yapay Zeka Analizi</h5>
+                        <h5 class="card-title text-gold fw-bold mb-3 uppercase tracking text-center">Yapay Zeka Hisse Analiz Sistemi</h5>
                         <form method="GET" action="/">
                             <div class="input-group">
-                                <input type="text" name="hisse_kodu" class="form-control text-uppercase" placeholder="Örn: THYAO, ASELS, TUPRS" value="{sembol_degeri}" required>
-                                <button class="btn btn-primary" type="submit">Analiz Et</button>
+                                <input type="text" name="hisse_kodu" class="form-control text-uppercase" placeholder="Örnek: THYAO, ASELS, TUPRS" value="{sembol_degeri}" required>
+                                <button class="btn btn-gold uppercase" type="submit">Analiz</button>
                             </div>
                         </form>
                     </div>
+                    
                     {sonuc_alani}
+                    
                 </div>
             </div>
         </div>
+        
+        <footer class="text-center py-3 mt-auto text-white-50" style="background-color: #0a0c0e; border-top: 1px solid #1a1f29; font-size: 0.85rem;">
+            © 2026 AslanYatırım. Tüm Hakları Saklıdır. | Yapay Zeka Destekli Borsa Analiz Modülü
+        </footer>
     </body>
     </html>
     '''
