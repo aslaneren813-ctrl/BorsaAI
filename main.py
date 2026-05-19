@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
-app = FastAPI(title="AslanYatırım Yapay Zeka Portalı", version="0.5.0")
+app = FastAPI(title="AslanYatırım Yapay Zeka Portalı", version="0.5.5")
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,7 +28,7 @@ def web_arayuzu(hisse_kodu: str = None):
         
         if df.empty or len(df) < 20:
             sonuc_alani = f'''
-            <div class="card p-4 text-center border-danger animate-fade">
+            <div class="card p-4 text-center border-danger animate-fade w-100">
                 <div class="text-danger fw-bold fs-5">⚠️ Hata: {sembol_degeri}</div>
                 <div class="text-muted small mt-1">Borsa İstanbul verisi alınamadı. Sembolü doğru girdiğinizden emin olun (Örn: THYAO).</div>
             </div>
@@ -48,7 +48,7 @@ def web_arayuzu(hisse_kodu: str = None):
             df_model = df.dropna().copy()
             
             if df_model.empty:
-                sonuc_alani = '<div class="card p-4 text-center border-danger"><div class="text-danger">Hata: Model için yetersiz veri.</div></div>'
+                sonuc_alani = '<div class="card p-4 text-center border-danger w-100"><div class="text-danger">Hata: Model için yetersiz veri.</div></div>'
             else:
                 oznitelikler = ['SMA_14', 'RSI_14', 'Fiyat_Degisim']
                 X = df_model[oznitelikler]
@@ -71,7 +71,7 @@ def web_arayuzu(hisse_kodu: str = None):
                 rsi_renk = "text-danger" if rsi_anlik > 70 else ("text-success" if rsi_anlik < 30 else "text-warning")
                 
                 sonuc_alani = f'''
-                <div class="card p-4 mb-4 animate-fade">
+                <div class="card p-4 mb-4 animate-fade w-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h2 class="fw-bold text-gold m-0">{sembol_degeri}</h2>
                         <span class="text-muted small">Son Veri: {str(df.index[-1].date())}</span>
@@ -93,12 +93,12 @@ def web_arayuzu(hisse_kodu: str = None):
                     </div>
                 </div>
 
-                <div class="card p-4 animate-fade">
+                <div class="card p-4 animate-fade w-100">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-gold m-0 fw-bold uppercase tracking">📈 Teknik İndikatör Grafikleri & Trend Analizi</h6>
+                        <h6 class="text-gold m-0 fw-bold uppercase tracking">📈 Teknik Grafik & Trend Analizi</h6>
                         <span class="badge bg-warning text-dark px-2 py-1 small fw-bold">YAKINDA</span>
                     </div>
-                    <div class="placeholder-container">
+                    <div class="placeholder-container text-start">
                         <div class="placeholder-bar mb-2" style="width: 85%;"></div>
                         <div class="placeholder-bar mb-2" style="width: 60%;"></div>
                         <div class="placeholder-bar" style="width: 40%;"></div>
@@ -125,6 +125,7 @@ def web_arayuzu(hisse_kodu: str = None):
                 min-height: 100vh;
                 display: flex;
                 flex-direction: column;
+                justify-content: space-between;
             }}
             .text-gold {{ color: #FFD700 !important; }}
             .bg-gold {{ background-color: #FFD700 !important; color: #0d0f12 !important; }}
@@ -146,6 +147,7 @@ def web_arayuzu(hisse_kodu: str = None):
             .form-control:focus {{
                 border-color: #FFD700 !important;
                 box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.15) !important;
+                color: #ffffff !important;
             }}
             
             .btn-gold {{
@@ -158,7 +160,7 @@ def web_arayuzu(hisse_kodu: str = None):
             }}
             .btn-gold:hover {{
                 background-color: #e6c200 !important;
-                transform: translateY(-1px);
+                color: #0d0f12 !important;
             }}
             
             .status-yukari {{ background: linear-gradient(135deg, #198754 0%, #0f5132 100%); }}
@@ -167,6 +169,23 @@ def web_arayuzu(hisse_kodu: str = None):
             .uppercase {{ text-transform: uppercase; }}
             .tracking {{ letter-spacing: 1px; }}
             .italic {{ font-style: italic; }}
+            
+            /* Merkezleme Sihri */
+            .main-content {{
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px 20px;
+            }}
+            .center-container {{
+                width: 100%;
+                max-width: 500px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-center: center;
+            }}
             
             /* Placeholder Efekti */
             .placeholder-container {{
@@ -182,51 +201,3 @@ def web_arayuzu(hisse_kodu: str = None):
                 animation: loading 1.5s infinite;
                 border-radius: 6px;
             }}
-            
-            @keyframes loading {{
-                0% {{ background-position: 200% 0; }}
-                100% {{ background-position: -200% 0; }}
-            }}
-            
-            .animate-fade {{
-                animation: fadeIn 0.4s ease-out forwards;
-            }}
-            @keyframes fadeIn {{
-                from {{ opacity: 0; transform: translateY(10px); }}
-                to {{ opacity: 1; transform: translateY(0); }}
-            }}
-        </style>
-    </head>
-    <body>
-        <nav class="navbar navbar-dark py-3" style="background-color: #0a0c0e; border-bottom: 1px solid #1a1f29;">
-            <div class="container justify-content-center">
-                <span class="navbar-brand fw-bold text-gold fs-4 tracking">🦁 ASLAN YATIRIM PORTALI</span>
-            </div>
-        </nav>
-        
-        <div class="container my-auto py-5">
-            <div class="row justify-content-center">
-                <div class="col-md-7 col-lg-6">
-                    
-                    <div class="card p-4 mb-4">
-                        <h5 class="card-title text-gold fw-bold mb-3 uppercase tracking text-center">Yapay Zeka Hisse Analiz Sistemi</h5>
-                        <form method="GET" action="/">
-                            <div class="input-group">
-                                <input type="text" name="hisse_kodu" class="form-control text-uppercase" placeholder="Örnek: THYAO, ASELS, TUPRS" value="{sembol_degeri}" required>
-                                <button class="btn btn-gold uppercase" type="submit">Analiz</button>
-                            </div>
-                        </form>
-                    </div>
-                    
-                    {sonuc_alani}
-                    
-                </div>
-            </div>
-        </div>
-        
-        <footer class="text-center py-3 mt-auto text-white-50" style="background-color: #0a0c0e; border-top: 1px solid #1a1f29; font-size: 0.85rem;">
-            © 2026 AslanYatırım. Tüm Hakları Saklıdır. | Yapay Zeka Destekli Borsa Analiz Modülü
-        </footer>
-    </body>
-    </html>
-    '''
